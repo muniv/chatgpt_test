@@ -300,75 +300,176 @@
             });
         }
         
-        async function sendMessage() {
-            const messageInput = document.getElementById('messageInput');
-            const chatMessages = document.getElementById('chatMessages');
-            const message = messageInput.value.trim();
-            
-            if (!message) return;
-            
-            const apiKey = localStorage.getItem('openai_api_key');
-            
-            // 사용자 메시지 표시
-            chatMessages.innerHTML += `
-                <div style="background: #e3f2fd; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
-                    <strong>사용자:</strong> ${message}
-                </div>
-            `;
-            
-            messageInput.value = '';
-            messageInput.disabled = true;
-            
-            try {
-                // OpenAI API 호출
-                const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${apiKey}`
-                    },
-                    body: JSON.stringify({
-                        model: 'gpt-4o',
-                        messages: [
-                            {
-                                role: 'system',
-                                content: '당신은 도움이 되고 친근한 AI 어시스턴트입니다. 한국어로 답변해주세요.'
-                            },
-                            {
-                                role: 'user',
-                                content: message
-                            }
-                        ],
-                        max_tokens: 1000,
-                        temperature: 0.7
-                    })
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    const aiResponse = data.choices[0].message.content;
-                    
-                    // AI 응답 표시
-                    chatMessages.innerHTML += `
-                        <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
-                            <strong>AI:</strong> ${aiResponse}
-                        </div>
-                    `;
-                } else {
-                    throw new Error('API 호출 실패');
-                }
-            } catch (error) {
-                chatMessages.innerHTML += `
-                    <div style="background: #f8d7da; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
-                        <strong>오류:</strong> 메시지 전송 중 오류가 발생했습니다.
-                    </div>
-                `;
-            } finally {
-                messageInput.disabled = false;
-                messageInput.focus();
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            }
-        }
+                 async function sendMessage() {
+             const messageInput = document.getElementById('messageInput');
+             const chatMessages = document.getElementById('chatMessages');
+             const message = messageInput.value.trim();
+             
+             if (!message) return;
+             
+             const apiKey = localStorage.getItem('openai_api_key');
+             
+             // 사용자 메시지 표시
+             chatMessages.innerHTML += `
+                 <div style="background: #e3f2fd; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+                     <strong>사용자:</strong> ${message}
+                 </div>
+             `;
+             
+             messageInput.value = '';
+             messageInput.disabled = true;
+             
+             // 이미지 생성 키워드 감지
+             const imageKeywords = ['그려줘', '그려', '그림', '이미지', '만들어줘', '그려봐', 'draw', 'create', 'generate', 'image'];
+             const hasImageKeyword = imageKeywords.some(keyword => 
+                 message.toLowerCase().includes(keyword.toLowerCase())
+             );
+             
+             try {
+                 if (hasImageKeyword) {
+                     // 이미지 생성
+                     await generateImage(message, apiKey, chatMessages);
+                 } else {
+                     // 일반 대화
+                     await generateTextResponse(message, apiKey, chatMessages);
+                 }
+             } catch (error) {
+                 chatMessages.innerHTML += `
+                     <div style="background: #f8d7da; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+                         <strong>오류:</strong> 메시지 전송 중 오류가 발생했습니다.
+                     </div>
+                 `;
+             } finally {
+                 messageInput.disabled = false;
+                 messageInput.focus();
+                 chatMessages.scrollTop = chatMessages.scrollHeight;
+             }
+         }
+         
+         async function generateTextResponse(message, apiKey, chatMessages) {
+             const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                 method: 'POST',
+                 headers: {
+                     'Content-Type': 'application/json',
+                     'Authorization': `Bearer ${apiKey}`
+                 },
+                 body: JSON.stringify({
+                     model: 'gpt-4o',
+                     messages: [
+                         {
+                             role: 'system',
+                             content: '당신은 도움이 되고 친근한 AI 어시스턴트입니다. 한국어로 답변해주세요.'
+                         },
+                         {
+                             role: 'user',
+                             content: message
+                         }
+                     ],
+                     max_tokens: 1000,
+                     temperature: 0.7
+                 })
+             });
+             
+             if (response.ok) {
+                 const data = await response.json();
+                 const aiResponse = data.choices[0].message.content;
+                 
+                 chatMessages.innerHTML += `
+                     <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+                         <strong>AI:</strong> ${aiResponse}
+                     </div>
+                 `;
+             } else {
+                 throw new Error('텍스트 생성 실패');
+             }
+         }
+         
+         async function generateImage(message, apiKey, chatMessages) {
+             // 이미지 생성 중 표시
+             chatMessages.innerHTML += `
+                 <div style="background: #fff3cd; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+                     <strong>AI:</strong> 🎨 이미지를 생성하고 있습니다...
+                 </div>
+             `;
+             
+             // 프롬프트에서 이미지 키워드 제거하고 실제 내용만 추출
+             let prompt = message;
+             const imageKeywords = ['그려줘', '그려', '그림', '이미지', '만들어줘', '그려봐'];
+             imageKeywords.forEach(keyword => {
+                 prompt = prompt.replace(new RegExp(keyword, 'gi'), '').trim();
+             });
+             
+             // 한국어를 영어로 번역 (간단한 매핑)
+             const translations = {
+                 '고양이': 'cat',
+                 '강아지': 'dog',
+                 '사람': 'person',
+                 '풍경': 'landscape',
+                 '꽃': 'flower',
+                 '나무': 'tree',
+                 '하늘': 'sky',
+                 '바다': 'ocean',
+                 '산': 'mountain',
+                 '집': 'house',
+                 '자동차': 'car',
+                 '비행기': 'airplane',
+                 '배': 'ship',
+                 '책': 'book',
+                 '컴퓨터': 'computer',
+                 '전화': 'phone',
+                 '음식': 'food',
+                 '음악': 'music',
+                 '운동': 'exercise',
+                 '게임': 'game'
+             };
+             
+             // 번역 적용
+             let englishPrompt = prompt;
+             Object.keys(translations).forEach(korean => {
+                 englishPrompt = englishPrompt.replace(new RegExp(korean, 'g'), translations[korean]);
+             });
+             
+             // 영어 프롬프트가 비어있으면 원본 사용
+             if (!englishPrompt.trim()) {
+                 englishPrompt = prompt;
+             }
+             
+             // DALL-E API 호출
+             const imageResponse = await fetch('https://api.openai.com/v1/images/generations', {
+                 method: 'POST',
+                 headers: {
+                     'Content-Type': 'application/json',
+                     'Authorization': `Bearer ${apiKey}`
+                 },
+                 body: JSON.stringify({
+                     model: 'dall-e-3',
+                     prompt: englishPrompt + ' (high quality, detailed, beautiful)',
+                     n: 1,
+                     size: '1024x1024'
+                 })
+             });
+             
+             if (imageResponse.ok) {
+                 const imageData = await imageResponse.json();
+                 const imageUrl = imageData.data[0].url;
+                 
+                 // 기존 "생성 중" 메시지 제거
+                 const lastMessage = chatMessages.lastElementChild;
+                 if (lastMessage && lastMessage.textContent.includes('이미지를 생성하고 있습니다')) {
+                     lastMessage.remove();
+                 }
+                 
+                 // 생성된 이미지 표시
+                 chatMessages.innerHTML += `
+                     <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 10px;">
+                         <strong>AI:</strong> 🎨 "${prompt}"에 대한 이미지를 생성했습니다!<br><br>
+                         <img src="${imageUrl}" alt="AI 생성 이미지" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                     </div>
+                 `;
+             } else {
+                 throw new Error('이미지 생성 실패');
+             }
+         }
     </script>
 </body>
 </html> 
