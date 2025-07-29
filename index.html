@@ -448,6 +448,23 @@
                  prompt = prompt.replace(new RegExp(keyword, 'gi'), '').trim();
              });
              
+             // 이전 대화 내용을 바탕으로 프롬프트 개선
+             let enhancedPrompt = prompt;
+             
+             // 대화 히스토리에서 관련 내용 추출
+             const recentMessages = conversationHistory.slice(-6); // 최근 6개 메시지 확인
+             const contextMessages = recentMessages.filter(msg => 
+                 msg.role === 'user' && 
+                 !imageKeywords.some(keyword => msg.content.toLowerCase().includes(keyword.toLowerCase()))
+             );
+             
+             if (contextMessages.length > 0) {
+                 // 이전 대화 내용을 프롬프트에 추가
+                 const contextText = contextMessages.map(msg => msg.content).join(' ');
+                 enhancedPrompt = `${contextText} ${prompt}`;
+                 console.log('대화 컨텍스트 포함된 프롬프트:', enhancedPrompt);
+             }
+             
              console.log('추출된 프롬프트:', prompt);
              
              // 한국어를 영어로 번역 (간단한 매핑)
@@ -475,14 +492,14 @@
              };
              
              // 번역 적용
-             let englishPrompt = prompt;
+             let englishPrompt = enhancedPrompt;
              Object.keys(translations).forEach(korean => {
                  englishPrompt = englishPrompt.replace(new RegExp(korean, 'g'), translations[korean]);
              });
              
              // 영어 프롬프트가 비어있으면 원본 사용
              if (!englishPrompt.trim()) {
-                 englishPrompt = prompt;
+                 englishPrompt = enhancedPrompt;
              }
              
              console.log('영어 프롬프트:', englishPrompt);
@@ -518,7 +535,7 @@
                      }
                      
                      // AI 응답을 대화 히스토리에 추가
-                     const imageResponseText = `🎨 "${prompt}"에 대한 이미지를 생성했습니다!`;
+                     const imageResponseText = `🎨 "${enhancedPrompt}"에 대한 이미지를 생성했습니다!`;
                      conversationHistory.push({
                          role: 'assistant',
                          content: imageResponseText
@@ -530,7 +547,7 @@
                      // 생성된 이미지 표시
                      chatMessages.innerHTML += `
                          <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 10px;">
-                             <strong>AI:</strong> 🎨 "${prompt}"에 대한 이미지를 생성했습니다!<br><br>
+                             <strong>AI:</strong> 🎨 "${enhancedPrompt}"에 대한 이미지를 생성했습니다!<br><br>
                              <img src="${imageUrl}" alt="AI 생성 이미지" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
                          </div>
                      `;
