@@ -271,45 +271,69 @@
             }, 5000);
         }
         
-        function startChat(apiKey) {
-            // 간단한 채팅 인터페이스 생성
-            const container = document.querySelector('.container');
-            container.innerHTML = `
-                <div class="logo">💬 AI 채팅</div>
-                <div style="text-align: left; margin: 20px 0;">
-                    <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
-                        <strong>AI:</strong> 안녕하세요! API 키로 인증되었습니다. 무엇을 도와드릴까요?
-                    </div>
-                </div>
-                <div style="display: flex; gap: 10px;">
-                    <input type="text" 
-                           id="messageInput" 
-                           placeholder="메시지를 입력하세요..."
-                           style="flex: 1; padding: 10px; border: 2px solid #e9ecef; border-radius: 5px;">
-                    <button onclick="sendMessage()" 
-                            style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                        전송
-                    </button>
-                    <button onclick="searchAndChat()" 
-                            style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                        🔍 검색
-                    </button>
-                </div>
-                <div id="chatMessages" style="text-align: left; margin-top: 20px; max-height: 300px; overflow-y: auto;"></div>
-                <button onclick="location.reload()" 
-                        style="margin-top: 20px; padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                    처음으로 돌아가기
-                </button>
-            `;
-            
-            // 메시지 입력 이벤트
-            const messageInput = document.getElementById('messageInput');
-            messageInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    sendMessage();
-                }
-            });
-        }
+                 // 대화 히스토리 저장
+         let conversationHistory = [
+             {
+                 role: 'system',
+                 content: '당신은 도움이 되고 친근한 AI 어시스턴트입니다. 한국어로 답변해주세요.'
+             },
+             {
+                 role: 'assistant',
+                 content: '안녕하세요! API 키로 인증되었습니다. 무엇을 도와드릴까요?'
+             }
+         ];
+         
+         // 대화 히스토리 길이 제한 (최대 20개 메시지)
+         function limitConversationHistory() {
+             const maxMessages = 20;
+             if (conversationHistory.length > maxMessages) {
+                 // system 메시지와 첫 번째 assistant 메시지는 유지
+                 const systemMessage = conversationHistory[0];
+                 const firstAssistantMessage = conversationHistory[1];
+                 const recentMessages = conversationHistory.slice(-(maxMessages - 2));
+                 conversationHistory = [systemMessage, firstAssistantMessage, ...recentMessages];
+             }
+         }
+         
+         function startChat(apiKey) {
+             // 간단한 채팅 인터페이스 생성
+             const container = document.querySelector('.container');
+             container.innerHTML = `
+                 <div class="logo">💬 AI 채팅</div>
+                 <div style="text-align: left; margin: 20px 0;">
+                     <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+                         <strong>AI:</strong> 안녕하세요! API 키로 인증되었습니다. 무엇을 도와드릴까요?
+                     </div>
+                 </div>
+                 <div style="display: flex; gap: 10px;">
+                     <input type="text" 
+                            id="messageInput" 
+                            placeholder="메시지를 입력하세요..."
+                            style="flex: 1; padding: 10px; border: 2px solid #e9ecef; border-radius: 5px;">
+                     <button onclick="sendMessage()" 
+                             style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                         전송
+                     </button>
+                     <button onclick="searchAndChat()" 
+                             style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                         🔍 검색
+                     </button>
+                 </div>
+                 <div id="chatMessages" style="text-align: left; margin-top: 20px; max-height: 300px; overflow-y: auto;"></div>
+                 <button onclick="location.reload()" 
+                         style="margin-top: 20px; padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                     처음으로 돌아가기
+                 </button>
+             `;
+             
+             // 메시지 입력 이벤트
+             const messageInput = document.getElementById('messageInput');
+             messageInput.addEventListener('keypress', function(e) {
+                 if (e.key === 'Enter') {
+                     sendMessage();
+                 }
+             });
+         }
         
                  async function sendMessage() {
              const messageInput = document.getElementById('messageInput');
@@ -319,6 +343,12 @@
              if (!message) return;
              
              const apiKey = localStorage.getItem('openai_api_key');
+             
+             // 사용자 메시지를 대화 히스토리에 추가
+             conversationHistory.push({
+                 role: 'user',
+                 content: message
+             });
              
              // 사용자 메시지 표시
              chatMessages.innerHTML += `
@@ -372,16 +402,7 @@
                  },
                  body: JSON.stringify({
                      model: 'gpt-4o',
-                     messages: [
-                         {
-                             role: 'system',
-                             content: '당신은 도움이 되고 친근한 AI 어시스턴트입니다. 한국어로 답변해주세요.'
-                         },
-                         {
-                             role: 'user',
-                             content: message
-                         }
-                     ],
+                     messages: conversationHistory,
                      max_tokens: 1000,
                      temperature: 0.7
                  })
@@ -390,6 +411,15 @@
              if (response.ok) {
                  const data = await response.json();
                  const aiResponse = data.choices[0].message.content;
+                 
+                 // AI 응답을 대화 히스토리에 추가
+                 conversationHistory.push({
+                     role: 'assistant',
+                     content: aiResponse
+                 });
+                 
+                 // 대화 히스토리 길이 제한
+                 limitConversationHistory();
                  
                  chatMessages.innerHTML += `
                      <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
@@ -459,7 +489,7 @@
              
              try {
                  // DALL-E API 호출
-                 const imageResponse = await fetch('https://api.openai.com/v1/images/generations', {
+                 const apiResponse = await fetch('https://api.openai.com/v1/images/generations', {
                      method: 'POST',
                      headers: {
                          'Content-Type': 'application/json',
@@ -473,10 +503,10 @@
                      })
                  });
                  
-                 console.log('DALL-E API 응답 상태:', imageResponse.status);
+                 console.log('DALL-E API 응답 상태:', apiResponse.status);
                  
-                 if (imageResponse.ok) {
-                     const imageData = await imageResponse.json();
+                 if (apiResponse.ok) {
+                     const imageData = await apiResponse.json();
                      console.log('이미지 데이터:', imageData);
                      
                      const imageUrl = imageData.data[0].url;
@@ -487,6 +517,16 @@
                          lastMessage.remove();
                      }
                      
+                     // AI 응답을 대화 히스토리에 추가
+                     const imageResponseText = `🎨 "${prompt}"에 대한 이미지를 생성했습니다!`;
+                     conversationHistory.push({
+                         role: 'assistant',
+                         content: imageResponseText
+                     });
+                     
+                     // 대화 히스토리 길이 제한
+                     limitConversationHistory();
+                     
                      // 생성된 이미지 표시
                      chatMessages.innerHTML += `
                          <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 10px;">
@@ -495,7 +535,7 @@
                          </div>
                      `;
                  } else {
-                     const errorData = await imageResponse.json();
+                     const errorData = await apiResponse.json();
                      console.error('DALL-E API 오류:', errorData);
                      throw new Error(`이미지 생성 실패: ${errorData.error?.message || '알 수 없는 오류'}`);
                  }
@@ -529,6 +569,12 @@
              }
              
              const apiKey = localStorage.getItem('openai_api_key');
+             
+             // 사용자 메시지를 대화 히스토리에 추가
+             conversationHistory.push({
+                 role: 'user',
+                 content: `🔍 ${message} (검색 요청)`
+             });
              
              // 사용자 메시지 표시
              chatMessages.innerHTML += `
@@ -672,6 +718,15 @@
                  if (response.ok) {
                      const data = await response.json();
                      const aiResponse = data.choices[0].message.content;
+                     
+                     // AI 응답을 대화 히스토리에 추가
+                     conversationHistory.push({
+                         role: 'assistant',
+                         content: `🔍 "${query}"에 대한 검색 결과를 바탕으로 답변드립니다:\n\n${aiResponse}`
+                     });
+                     
+                     // 대화 히스토리 길이 제한
+                     limitConversationHistory();
                      
                      chatMessages.innerHTML += `
                          <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 10px;">
