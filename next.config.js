@@ -38,7 +38,7 @@ module.exports = withBundleAnalyzer(
       serverComponentsExternalPackages: ["sharp", "onnxruntime-node"]
     },
     // GitHub Pages base path 설정
-    basePath: process.env.NODE_ENV === 'production' ? '/chatgpt_clone' : '',
-    assetPrefix: process.env.NODE_ENV === 'production' ? '/chatgpt_clone/' : ''
+    basePath: process.env.NODE_ENV === 'production' ? '/chatgpt_test' : '',
+    assetPrefix: process.env.NODE_ENV === 'production' ? '/chatgpt_test/' : ''
   })
 )
