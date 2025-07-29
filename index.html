@@ -361,7 +361,7 @@
              messageInput.disabled = true;
              
              // 이미지 생성 키워드 감지 (더 정확하게)
-             const imageKeywords = ['그려줘', '그려', '그림', '이미지', '만들어줘', '그려봐', 'draw', 'create', 'generate', 'image'];
+             const imageKeywords = ['그려줘', '그려', '그려봐', 'draw', 'generate'];
              const hasImageKeyword = imageKeywords.some(keyword => 
                  message.toLowerCase().includes(keyword.toLowerCase())
              );
@@ -443,7 +443,7 @@
              
              // 프롬프트에서 이미지 키워드 제거하고 실제 내용만 추출
              let prompt = message;
-             const imageKeywords = ['그려줘', '그려', '그림', '이미지', '만들어줘', '그려봐'];
+             const imageKeywords = ['그려줘', '그려', '그려봐'];
              imageKeywords.forEach(keyword => {
                  prompt = prompt.replace(new RegExp(keyword, 'gi'), '').trim();
              });
