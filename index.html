@@ -319,24 +319,30 @@
              messageInput.value = '';
              messageInput.disabled = true;
              
-             // 이미지 생성 키워드 감지
+             // 이미지 생성 키워드 감지 (더 정확하게)
              const imageKeywords = ['그려줘', '그려', '그림', '이미지', '만들어줘', '그려봐', 'draw', 'create', 'generate', 'image'];
              const hasImageKeyword = imageKeywords.some(keyword => 
                  message.toLowerCase().includes(keyword.toLowerCase())
              );
              
+             console.log('메시지:', message);
+             console.log('이미지 키워드 감지:', hasImageKeyword);
+             
              try {
                  if (hasImageKeyword) {
+                     console.log('이미지 생성 시작');
                      // 이미지 생성
                      await generateImage(message, apiKey, chatMessages);
                  } else {
+                     console.log('텍스트 응답 시작');
                      // 일반 대화
                      await generateTextResponse(message, apiKey, chatMessages);
                  }
              } catch (error) {
+                 console.error('오류:', error);
                  chatMessages.innerHTML += `
                      <div style="background: #f8d7da; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
-                         <strong>오류:</strong> 메시지 전송 중 오류가 발생했습니다.
+                         <strong>오류:</strong> 메시지 전송 중 오류가 발생했습니다: ${error.message}
                      </div>
                  `;
              } finally {
@@ -385,6 +391,8 @@
          }
          
          async function generateImage(message, apiKey, chatMessages) {
+             console.log('이미지 생성 함수 시작:', message);
+             
              // 이미지 생성 중 표시
              chatMessages.innerHTML += `
                  <div style="background: #fff3cd; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
@@ -398,6 +406,8 @@
              imageKeywords.forEach(keyword => {
                  prompt = prompt.replace(new RegExp(keyword, 'gi'), '').trim();
              });
+             
+             console.log('추출된 프롬프트:', prompt);
              
              // 한국어를 영어로 번역 (간단한 매핑)
              const translations = {
@@ -434,24 +444,52 @@
                  englishPrompt = prompt;
              }
              
-             // DALL-E API 호출
-             const imageResponse = await fetch('https://api.openai.com/v1/images/generations', {
-                 method: 'POST',
-                 headers: {
-                     'Content-Type': 'application/json',
-                     'Authorization': `Bearer ${apiKey}`
-                 },
-                 body: JSON.stringify({
-                     model: 'dall-e-3',
-                     prompt: englishPrompt + ' (high quality, detailed, beautiful)',
-                     n: 1,
-                     size: '1024x1024'
-                 })
-             });
+             console.log('영어 프롬프트:', englishPrompt);
              
-             if (imageResponse.ok) {
-                 const imageData = await imageResponse.json();
-                 const imageUrl = imageData.data[0].url;
+             try {
+                 // DALL-E API 호출
+                 const imageResponse = await fetch('https://api.openai.com/v1/images/generations', {
+                     method: 'POST',
+                     headers: {
+                         'Content-Type': 'application/json',
+                         'Authorization': `Bearer ${apiKey}`
+                     },
+                     body: JSON.stringify({
+                         model: 'dall-e-3',
+                         prompt: englishPrompt + ' (high quality, detailed, beautiful)',
+                         n: 1,
+                         size: '1024x1024'
+                     })
+                 });
+                 
+                 console.log('DALL-E API 응답 상태:', imageResponse.status);
+                 
+                 if (imageResponse.ok) {
+                     const imageData = await imageResponse.json();
+                     console.log('이미지 데이터:', imageData);
+                     
+                     const imageUrl = imageData.data[0].url;
+                     
+                     // 기존 "생성 중" 메시지 제거
+                     const lastMessage = chatMessages.lastElementChild;
+                     if (lastMessage && lastMessage.textContent.includes('이미지를 생성하고 있습니다')) {
+                         lastMessage.remove();
+                     }
+                     
+                     // 생성된 이미지 표시
+                     chatMessages.innerHTML += `
+                         <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 10px;">
+                             <strong>AI:</strong> 🎨 "${prompt}"에 대한 이미지를 생성했습니다!<br><br>
+                             <img src="${imageUrl}" alt="AI 생성 이미지" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                         </div>
+                     `;
+                 } else {
+                     const errorData = await imageResponse.json();
+                     console.error('DALL-E API 오류:', errorData);
+                     throw new Error(`이미지 생성 실패: ${errorData.error?.message || '알 수 없는 오류'}`);
+                 }
+             } catch (error) {
+                 console.error('이미지 생성 중 오류:', error);
                  
                  // 기존 "생성 중" 메시지 제거
                  const lastMessage = chatMessages.lastElementChild;
@@ -459,15 +497,12 @@
                      lastMessage.remove();
                  }
                  
-                 // 생성된 이미지 표시
+                 // 오류 메시지 표시
                  chatMessages.innerHTML += `
-                     <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 10px;">
-                         <strong>AI:</strong> 🎨 "${prompt}"에 대한 이미지를 생성했습니다!<br><br>
-                         <img src="${imageUrl}" alt="AI 생성 이미지" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                     <div style="background: #f8d7da; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+                         <strong>오류:</strong> 이미지 생성 중 오류가 발생했습니다: ${error.message}
                      </div>
                  `;
-             } else {
-                 throw new Error('이미지 생성 실패');
              }
          }
     </script>
